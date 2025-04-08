@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app import models, schemas, database
+from app.auth import get_current_user
+
 
 router = APIRouter(tags=["Recipes"])
 
