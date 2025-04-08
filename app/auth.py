@@ -1,9 +1,10 @@
+
 import os
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -41,13 +42,13 @@ class UserResponse(BaseModel):
 
 
 def hash_password(password: str):
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
 
 def verify_password(plain_password: str, hashed_password) -> bool:
     if isinstance(hashed_password, str):
-        hashed_password = hashed_password.encode("utf-8")
-    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password)
+        hashed_password = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password)
 
 
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
@@ -57,36 +58,32 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
+        user = db.query(User).filter(User.email == email).first()
+        if user is None:
+            raise credentials_exception
     except jwt.PyJWTError:
         raise credentials_exception
-    return email
+    return user
 
 
 @router.post("/signup")
 def signup(
-    email: str = Form(...),
-    password: str = Form(...),
-    avatar: UploadFile = File(None),
+    user: UserCreate,
     db: Session = Depends(get_db)
 ):
-    existing_user = db.query(User).filter(User.email == email).first()
+    existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    password_hash = hash_password(password)
-    db_user = User(email=email, hashed_password=password_hash)
-
-    if avatar:
-        filename = f"{email}_avatar.jpg"
-        avatar_path = save_file(avatar, filename)
-        db_user.avatar_path = avatar_path
+    password_hash = hash_password(user.password)
+    db_user = User(email=user.email, hashed_password=password_hash)
 
     db.add(db_user)
     db.commit()
@@ -98,7 +95,7 @@ def signup(
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
+    if not db_user or not verify_password(user.password, db_user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(data={"sub": db_user.email})

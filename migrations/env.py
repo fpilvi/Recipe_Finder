@@ -17,6 +17,7 @@ target_metadata = Base.metadata
 
 database_url = os.getenv("DATABASE_URL")
 
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     context.configure(

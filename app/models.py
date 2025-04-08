@@ -48,6 +48,7 @@ class Ingredient(Base):
     __tablename__ = "ingredients"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
+    name = Column(String, index=True, unique=True)
 
     recipes = relationship("Recipe", secondary="recipe_ingredients", back_populates="ingredients")
 
