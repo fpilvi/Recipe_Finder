@@ -15,8 +15,6 @@ class User(Base):
     avatar_path = Column(String, nullable=True)
     allergies = Column(Text, nullable=True)
     dietary_preferences = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     recipes = relationship("Recipe", back_populates="user")
 
